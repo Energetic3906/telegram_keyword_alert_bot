@@ -42,7 +42,7 @@ jobs:
         fi
 
     - name: Install dependencies and lock
-      # if: steps.file_check.outputs.updated == 'true'
+      if: steps.file_check.outputs.updated == 'true'
       run: |
         pipenv install --dev
         pipenv lock
@@ -60,7 +60,7 @@ jobs:
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
     - name: Build and push Docker image
-      # if: steps.file_check.outputs.updated == 'true'
+      if: steps.file_check.outputs.updated == 'true'
       uses: docker/build-push-action@v5
       with:
         context: .
