@@ -1,5 +1,5 @@
 # 使用官方Python基础镜像
-FROM python:3.7-slim
+FROM python:3.12-slim
 
 # 设置工作目录
 WORKDIR /app

@@ -75,7 +75,7 @@ http://t.me/keyword_alert_bot
 
 ### 2. RUN
 
-运行环境 python3.7+
+运行环境 python3.12+
 
 首次运行需要使用Telegram账户接收数字验证码，并输入密码（Telegram API触发）。
 
