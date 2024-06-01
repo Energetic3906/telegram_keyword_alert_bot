@@ -32,17 +32,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install pipenv
 
-    - name: Check for file changes
-      id: file_check
-      run: |
-        if git diff --name-only HEAD^ | grep -E -q "\.py$|Pipfile"; then
-          echo "{updated}={true}" >> $GITHUB_OUTPUT
-        else
-          echo "{updated}={false}" >> $GITHUB_OUTPUT
-        fi
-
     - name: Install dependencies and lock
-      if: steps.file_check.outputs.updated == 'true'
       run: |
         pipenv install --dev
         pipenv lock
@@ -60,19 +50,9 @@ jobs:
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
     - name: Build and push Docker image
-      if: steps.file_check.outputs.updated == 'true'
       uses: docker/build-push-action@v5
       with:
         context: .
         platforms: linux/amd64,linux/arm64
         push: true
         tags: povoma4617/keyword_alert_bot:latest
-    
-    # - name: Create release
-    #   if: steps.file_check.outputs.updated == 'true'
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   run: |
-    #     VERSION=$(python -c "from utils.__version__ import __version__; print(__version__)")
-    #     echo $VERSION
-    #     gh release create $VERSION
