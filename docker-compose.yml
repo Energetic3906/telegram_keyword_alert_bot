@@ -1,6 +1,6 @@
 services:
   keyword_alert_bot:
-    image: yha8897/keyword_alert_bot:latest
+    image: povoma4617/keyword_alert_bot:latest
     container_name: keyword_alert_bot
     volumes:
       - ./config.yml:/app/config.yml

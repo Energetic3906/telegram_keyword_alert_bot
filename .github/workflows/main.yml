@@ -12,18 +12,18 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         fetch-depth: 2
 
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
+      uses: docker/setup-qemu-action@v3
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      uses: docker/setup-buildx-action@v3
 
     - name: Set up Python 3.7
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: 3.7
 
@@ -36,9 +36,9 @@ jobs:
       id: file_check
       run: |
         if git diff --name-only HEAD^ | grep -q ".py$"; then
-          echo "::set-output name=updated::true"
+          echo "{updated}={true}" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=updated::false"
+          echo "{updated}={false}" >> $GITHUB_OUTPUT
         fi
 
     - name: Install dependencies and lock
@@ -54,25 +54,25 @@ jobs:
 
 
     - name: Login to DockerHub
-      uses: docker/login-action@v1 
+      uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
     - name: Build and push Docker image
       if: steps.file_check.outputs.updated == 'true'
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v5
       with:
         context: .
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: yha8897/keyword_alert_bot:latest
+        tags: povoma4617/keyword_alert_bot:latest
     
-    - name: Create release
-      if: steps.file_check.outputs.updated == 'true'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        VERSION=$(python -c "from utils.__version__ import __version__; print(__version__)")
-        echo $VERSION
-        gh release create $VERSION
+    # - name: Create release
+    #   if: steps.file_check.outputs.updated == 'true'
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     VERSION=$(python -c "from utils.__version__ import __version__; print(__version__)")
+    #     echo $VERSION
+    #     gh release create $VERSION
