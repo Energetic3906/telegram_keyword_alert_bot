@@ -1,10 +1,6 @@
-version: "3.9"
 services:
   keyword_alert_bot:
-    # build: .
     image: yha8897/keyword_alert_bot:latest
+    container_name: keyword_alert_bot
     volumes:
       - ./config.yml:/app/config.yml
-
-    # ports:
-    #   - "8080:8080"
