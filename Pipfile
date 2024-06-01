@@ -7,13 +7,13 @@ verify_ssl = true
 
 [packages]
 telethon = "===1.35.0"
-pysocks = "latest"
-peewee = "latest"
-pyyaml = "latest"
-diskcache = "latest"
-asyncstdlib = "latest"
-colorama = "latest"
-text-box-wrapper = "latest"
+pysocks = "1.7.1"
+peewee = "3.17.5"
+pyyaml = "6.0.1"
+diskcache = "5.6.3"
+asyncstdlib = "3.12.3"
+colorama = "0.4.6"
+text-box-wrapper = "0.1.5"
 
 [requires]
 python_version = "3.7"
