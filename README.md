@@ -73,6 +73,29 @@ http://t.me/keyword_alert_bot
 
 访问https://t.me/BotFather  创建机器人
 
+
+## docker -- 该仓库推荐使用docker
+
+当前目录下配置config.yml文件后，使用docker一键启动，docker-compose.yaml文件配置如下：
+
+```yaml
+services:
+  keyword_alert_bot:
+    image: povoma4617/keyword_alert_bot:latest
+    container_name: keyword_alert_bot
+    volumes:
+      - ./config.yml:/app/config.yml
+      - ./etc:/app/etc
+```
+
+然后
+
+```shell
+docker compose run keyword_alert_bot
+```
+
+输入验证码，输入密码，登录成功。之后就直接 `docker compose up -d` ，因为我将bot session保存到了 `./etc` 中，这样就不用反复登录；数据库也保存到了 `./etc` 中，避免数据丢失，可以持续化的保存到宿主机中。
+
 ### 2. RUN
 
 运行环境 python3.12+
@@ -98,12 +121,6 @@ e.g.
 0 0 * * * cd /home/keyword_alert_bot && pipenv  telethon > /dev/null 2>&1
 ```
 
-## docker 
-
-当前目录下配置config.yml文件后，使用docker一键启动
-```
-docker run -it --name keyword_alert_bot -v $(pwd)/config.yml:/app/config.yml   povoma4617/keyword_alert_bot
-```
 
 ## BUG Q&A
  - You have joined too many channels/supergroups (caused by JoinChannelRequest)
