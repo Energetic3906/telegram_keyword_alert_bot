@@ -102,7 +102,7 @@ class _Db:
 
         # 处理字段不存在的报错
         if 'no such column' in _e:
-          find = re.search('no such column: (?:\w+\.)([a-z_0-9]+)$',_e)
+          find = re.search(r'no such column: (?:\w+\.)([a-z_0-9]+)$', _e)
           if find:
             field = find.group(1)
             if hasattr(model_class,field):

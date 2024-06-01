@@ -4,3 +4,4 @@ services:
     container_name: keyword_alert_bot
     volumes:
       - ./config.yml:/app/config.yml
+      - ./etc:/app/etc
