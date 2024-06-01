@@ -35,7 +35,7 @@ jobs:
     - name: Check for file changes
       id: file_check
       run: |
-        if git diff --name-only HEAD^ | grep -q ".py$"; then
+        if git diff --name-only HEAD^ | grep -E -q "\.py$|Pipfile"; then
           echo "{updated}={true}" >> $GITHUB_OUTPUT
         else
           echo "{updated}={false}" >> $GITHUB_OUTPUT
