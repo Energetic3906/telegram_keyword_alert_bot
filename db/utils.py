@@ -14,9 +14,12 @@ __all__ = [
   'User_block_list',
 ]
 
-_current_path = os.path.dirname(os.path.realpath(__file__))
+# 获取当前文件所在目录的上一级目录
+_parent_path = os.path.dirname(os.path.abspath(__file__))
+_parent_path = os.path.dirname(_parent_path)
 
-_path = '{}/.db'.format(_current_path)
+# 指定数据库文件的保存路径为上一级目录中的 etc 文件夹中
+_path = os.path.join(_parent_path, 'etc', 'my_database.db')
 
 # 本地 执行sqlite写入
 _connect = SqliteDatabase(_path)
@@ -102,7 +105,7 @@ class _Db:
 
         # 处理字段不存在的报错
         if 'no such column' in _e:
-          find = re.search(r'no such column: (?:\w+\.)([a-z_0-9]+)$', _e)
+          find = re.search('no such column: (?:\w+\.)([a-z_0-9]+)$',_e)
           if find:
             field = find.group(1)
             if hasattr(model_class,field):
