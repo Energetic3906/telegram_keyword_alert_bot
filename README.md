@@ -53,9 +53,27 @@ https://t.me/BotFather  创建机器人
 
 ### 2. 🐳Docker
 
-配置好config.yml文件后，使用docker命令一键启动
+当前目录下配置 config.yml 文件后，使用 docker 一键启动，docker-compose.yaml 文件配置如下：
+
+```yaml
+services:
+  keyword_alert_bot:
+    image: povoma4617/keyword_alert_bot:latest
+    container_name: keyword_alert_bot
+    volumes:
+      - ./config.yml:/app/config.yml
+      - ./etc:/app/etc
 ```
-$ docker run -it --name keyword_alert_bot -v $(pwd)/config.yml:/app/config.yml   yha8897/keyword_alert_bot
+
+然后
+
+```shell
+docker compose run keyword_alert_bot
+```
+即：
+
+```
+$ docker compose run keyword_alert_bot
 
 
 
@@ -72,38 +90,14 @@ Signed in successfully as DEMO; remember to not break the ToS or you will risk a
 
 ```
 
-首次运行需要Telegram账户接收数字验证码，并输入密码（Telegram API触发），之后提示success即成功启动
+
+输入验证码，输入密码，登录成功。之后就直接 `docker compose up -d` ，因为我将 bot session 保存到了 `./etc` 中，这样就不用反复登录；数据库也保存到了 `./etc` 中，避免数据丢失，可以持续化的保存到宿主机中。
 
 之后可以直接根据容器名重启或者停止：
 
 ```
 $ docker restart keyword_alert_bot
 $ docker stop keyword_alert_bot
-```
-
-
-## 💪Manual Build
-
-运行环境 python3.7+
-
-
-```
-$ pipenv install
-
-$ pipenv shell
-
-$ python3 ./main.py
-```
-
-### crontab （optional）
-
- - update telethon
-
-依赖库telethon可能存在旧版本不可用的情况或其他BUG，建议通过定时任务执行依赖更新。
-
-e.g. 
-```
-0 0 * * * cd /PATH/keyword_alert_bot && pipenv  telethon > /dev/null 2>&1
 ```
 
 ## 📘Usage
@@ -132,41 +126,6 @@ e.g.
 
 
 
-## BUILD
-
-### 1. config.yml.default --> config.yml
-
-#### Create Telelgram Account & API
-
-[开通api](https://my.telegram.org/apps) 建议使用新注册的Telegram账户
-
-#### Create BOT 
-
-访问https://t.me/BotFather  创建机器人
-
-
-## docker -- 该仓库推荐使用docker
-
-当前目录下配置config.yml文件后，使用docker一键启动，docker-compose.yaml文件配置如下：
-
-```yaml
-services:
-  keyword_alert_bot:
-    image: povoma4617/keyword_alert_bot:latest
-    container_name: keyword_alert_bot
-    volumes:
-      - ./config.yml:/app/config.yml
-      - ./etc:/app/etc
-```
-
-然后
-
-```shell
-docker compose run keyword_alert_bot
-```
-
-输入验证码，输入密码，登录成功。之后就直接 `docker compose up -d` ，因为我将bot session保存到了 `./etc` 中，这样就不用反复登录；数据库也保存到了 `./etc` 中，避免数据丢失，可以持续化的保存到宿主机中。
-
 ### 2. RUN
 
 运行环境 python3.12+
@@ -180,18 +139,6 @@ $ pipenv shell
 
 $ python3 ./main.py
 ```
-
-### 3. crontab （optional）
-
- - update telethon
-
-依赖库telethon可能存在旧版本不可用的情况或其他BUG，建议通过定时任务执行依赖更新。
-
-e.g. 
-```
-0 0 * * * cd /home/keyword_alert_bot && pipenv  telethon > /dev/null 2>&1
-```
-
 
 ## BUG Q&A
  - You have joined too many channels/supergroups (caused by JoinChannelRequest)
