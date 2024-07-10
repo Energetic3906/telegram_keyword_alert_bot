@@ -2,6 +2,9 @@
 
 本项目主要基于 [keyword_alert_bot](https://github.com/Hootrix/keyword_alert_bot) 进行的二次开发，请遵循相关协议。感谢 Hootrix。
 
+## 提醒
+
+我将仓库设置为了模板，有自己特殊的需求，或者想要自己开发的，可以直接使用模板功能进行二次开发。这样仓库可以在 GitHub 中直接搜索到，方便有类似需求的用户。
 
 ## 🚀Run
 
