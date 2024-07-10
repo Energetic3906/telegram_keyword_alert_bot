@@ -197,6 +197,11 @@ Main commands:
 /list - display all subscription lists.
 ```
 
+
+## 引用
+
+本项目主要基于 [N_m3u8DL-RE](https://github.com/Hootrix/keyword_alert_bot) 进行的二次开发，请遵循相关协议。感谢 Hootrix。
+
 # License
 
 [LICENSE](./LICENSE)
