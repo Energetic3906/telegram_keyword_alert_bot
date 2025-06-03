@@ -35,8 +35,8 @@ client = TelegramClient(f'{tmp_path}/User_tg_login', account['api_id'], account[
 client.start(phone=account['phone'])
 # client.start()
 
-# 设置bot，且直接启动
-bot = TelegramClient(f'{tmp_path}/alert_bot', account['api_id'], account['api_hash'],proxy = proxy).start(bot_token=account['bot_token'])
+# 设置bot，但不立即启动（在main函数中启动）
+bot = TelegramClient(f'{tmp_path}/alert_bot', account['api_id'], account['api_hash'], proxy=proxy)
 
 def js_to_py_re(rx):
   '''
@@ -1005,8 +1005,134 @@ async def common(event):
       await event.respond('success unsubscribe id:{}'.format(result if result else 'None'))
   raise events.StopPropagation
 
-if __name__ == "__main__":
+# 通用的错误处理和重连函数
+async def handle_connection_errors(client_obj, name, retry_delay, max_retry_delay):
+    try:
+        if not client_obj.is_connected():
+            logger.info(f"正在重新连接 {name}...")
+            await client_obj.connect()
+            logger.info(f"{name} 重新连接成功")
+            return True
+    except Exception as connect_error:
+        logger.error(f"{name} 重新连接失败: {connect_error}")
+        return False
+    return True
+
+async def main():
     cache.expire()
     print(banner())
-    # 开启client loop。防止进程退出
-    client.run_until_disconnected()
+    
+    # 重连机制和错误处理
+    retry_delay = 30  # 初始延迟时间（秒）
+    max_retry_delay = 300  # 最大延迟时间（秒）
+    
+    # 确保两个客户端都已连接
+    if not client.is_connected():
+        await client.connect()
+    
+    # 启动机器人客户端（使用bot token）
+    try:
+        logger.info("正在启动机器人客户端...")
+        await bot.start(bot_token=account['bot_token'])
+        logger.info("机器人客户端启动成功")
+    except Exception as e:
+        logger.error(f"机器人客户端启动失败: {e}")
+        raise
+    
+    # 创建两个任务并行运行
+    client_task = asyncio.create_task(run_client(retry_delay, max_retry_delay))
+    bot_task = asyncio.create_task(run_bot(retry_delay, max_retry_delay))
+    
+    # 等待两个任务完成（实际上不会完成，除非发生错误）
+    await asyncio.gather(client_task, bot_task)
+
+async def run_client(retry_delay, max_retry_delay):
+    """运行主客户端（用于监听消息）"""
+    current_delay = retry_delay
+    
+    while True:
+        try:
+            logger.info("主客户端已连接，开始监听消息...")
+            await client.run_until_disconnected()
+        except errors.FloodWaitError as e:
+            # 处理频率限制错误
+            wait_time = e.seconds
+            logger.warning(f"主客户端 FloodWaitError: 需要等待 {wait_time} 秒")
+            await asyncio.sleep(wait_time)
+        except errors.RpcMcgetFailError as e:
+            # 处理Telegram内部错误
+            logger.warning(f"主客户端 Telegram内部错误: {e}. 等待 {current_delay} 秒后重试")
+            await asyncio.sleep(current_delay)
+            current_delay = min(current_delay * 1.5, max_retry_delay)  # 指数退避策略
+        except (errors.ServerError, errors.TimedOutError, ConnectionError, errors.InvalidBufferError) as e:
+            # 处理连接错误
+            logger.warning(f"主客户端 连接错误: {e}. 等待 {current_delay} 秒后重试")
+            await asyncio.sleep(current_delay)
+            current_delay = min(current_delay * 1.5, max_retry_delay)  # 指数退避策略
+            
+            # 重新连接
+            await handle_connection_errors(client, "主客户端", current_delay, max_retry_delay)
+        except Exception as e:
+            # 处理其他未知错误
+            logger.error(f"主客户端 未知错误: {e}. 等待 {current_delay} 秒后重试")
+            await asyncio.sleep(current_delay)
+            current_delay = min(current_delay * 1.5, max_retry_delay)  # 指数退避策略
+        
+        # 重置延迟时间
+        if client.is_connected():
+            current_delay = retry_delay  # 如果成功连接，重置延迟
+
+async def run_bot(retry_delay, max_retry_delay):
+    """运行机器人客户端（用于响应命令）"""
+    current_delay = retry_delay
+    
+    while True:
+        try:
+            logger.info("机器人客户端已连接，开始监听命令...")
+            await bot.run_until_disconnected()
+        except errors.FloodWaitError as e:
+            # 处理频率限制错误
+            wait_time = e.seconds
+            logger.warning(f"机器人客户端 FloodWaitError: 需要等待 {wait_time} 秒")
+            await asyncio.sleep(wait_time)
+        except errors.RpcMcgetFailError as e:
+            # 处理Telegram内部错误
+            logger.warning(f"机器人客户端 Telegram内部错误: {e}. 等待 {current_delay} 秒后重试")
+            await asyncio.sleep(current_delay)
+            current_delay = min(current_delay * 1.5, max_retry_delay)  # 指数退避策略
+        except (errors.ServerError, errors.TimedOutError, ConnectionError, errors.InvalidBufferError) as e:
+            # 处理连接错误
+            logger.warning(f"机器人客户端 连接错误: {e}. 等待 {current_delay} 秒后重试")
+            await asyncio.sleep(current_delay)
+            current_delay = min(current_delay * 1.5, max_retry_delay)  # 指数退避策略
+            
+            # 重新连接机器人客户端（使用bot token）
+            try:
+                if not bot.is_connected():
+                    logger.info("正在重新启动机器人客户端...")
+                    await bot.start(bot_token=account['bot_token'])
+                    logger.info("机器人客户端重新启动成功")
+            except Exception as connect_error:
+                logger.error(f"机器人客户端重新连接失败: {connect_error}")
+        except Exception as e:
+            # 处理其他未知错误
+            logger.error(f"机器人客户端 未知错误: {e}. 等待 {current_delay} 秒后重试")
+            await asyncio.sleep(current_delay)
+            current_delay = min(current_delay * 1.5, max_retry_delay)  # 指数退避策略
+            
+            # 尝试重新启动机器人
+            try:
+                if not bot.is_connected():
+                    logger.info("正在重新启动机器人客户端...")
+                    await bot.start(bot_token=account['bot_token'])
+                    logger.info("机器人客户端重新启动成功")
+            except Exception as connect_error:
+                logger.error(f"机器人客户端重新连接失败: {connect_error}")
+        
+        # 重置延迟时间
+        if bot.is_connected():
+            current_delay = retry_delay  # 如果成功连接，重置延迟
+
+if __name__ == "__main__":
+    # 使用asyncio运行主函数
+    asyncio.run(main())
