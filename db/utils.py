@@ -1,140 +1,124 @@
 #coding=utf-8
-"""
-数据库操作类
-"""
-import logging,sys,os,datetime
+import os
 import re
-from peewee import MySQLDatabase,BigIntegerField,Model,CharField,DoubleField,IntegerField,CharField,SqliteDatabase,FloatField,SmallIntegerField,DateTimeField
-from peewee import OperationalError
+from pathlib import Path
+from peewee import (
+    SqliteDatabase, Model, IntegerField, CharField, 
+    SmallIntegerField, DateTimeField, BigIntegerField,
+    OperationalError
+)
+from playhouse.migrate import SqliteMigrator, migrate
 
 __all__ = [
-  'db',
-  'User',
-  'User_subscribe_list',
-  'User_block_list',
+    'db',
+    'User',
+    'User_subscribe_list',
+    'User_block_list',
 ]
 
-# 获取当前文件所在目录的上一级目录
-_parent_path = os.path.dirname(os.path.abspath(__file__))
-_parent_path = os.path.dirname(_parent_path)
+# 1. 获取当前文件所在目录的上一级目录的上一级 (即项目根目录)
+BASE_DIR = Path(__file__).resolve().parent.parent
+ETC_DIR = BASE_DIR / 'etc'
+DB_PATH = ETC_DIR / 'my_database.db'
 
-# 指定数据库文件的保存路径为上一级目录中的 etc 文件夹中
-_path = os.path.join(_parent_path, 'etc', 'my_database.db')
+# 2. 自动创建目录 (防止首次运行报错)
+if not ETC_DIR.exists():
+    ETC_DIR.mkdir(parents=True, exist_ok=True)
 
-# 本地 执行sqlite写入
-_connect = SqliteDatabase(_path)
-
-_connect.is_closed() and _connect.connect()
+# 3. 初始化数据库连接
+# pragmas={'journal_mode': 'wal'}: 开启 WAL 模式，大幅提升并发读写性能，减少锁表
+# check_same_thread=False: 允许在不同线程/协程中使用同一个连接对象 (对 Telethon 这种异步库很重要)
+_connect = SqliteDatabase(str(DB_PATH), pragmas={'journal_mode': 'wal'}, check_same_thread=False)
 
 class _Base(Model):
-  # #将表和数据库连接
-  class Meta:
-      database = _connect
+    class Meta:
+        database = _connect
 
 class User(_Base):
-  """用户数据表
-  id chat_id create_time
-  """
-  chat_id = IntegerField(index=True,unique=True)
-  create_time = DateTimeField('%Y-%m-%d %H:%M:%S',index=True)
-
-  class Meta:
-        indexes = (
-          #  (('字段1', '字段2'), True),    # 字段1与字段2整体作为索引，True 代表唯一索引
-          # (('字段1', '字段2'), False),   # 字段1与字段2整体作为索引，False 代表普通索引
-            # (('price','type','time'), False), # 联合索引
-        )
+    """用户数据表"""
+    # Telegram ID 是 64 位整数，推荐使用 BigIntegerField
+    chat_id = BigIntegerField(index=True, unique=True)
+    create_time = DateTimeField('%Y-%m-%d %H:%M:%S', index=True)
 
 class User_subscribe_list(_Base):
-  """
-  用户订阅表
-  user_subscribe_list
-  id user_id channel_name keywords status create_time
-  """
-  user_id = IntegerField(index=True)
-  channel_name = CharField(50,null=False)# 频道名称
-  
-  # https://docs.telethon.dev/en/latest/concepts/chats-vs-channels.html#channels
-  chat_id = CharField(50,null=False,default='')# 频道的非官方id。 e.g. -1001630956637
+    """用户订阅表"""
+    user_id = IntegerField(index=True)
+    channel_name = CharField(50, null=False) # 频道名称
+    
+    # 存储频道/群组 ID
+    chat_id = CharField(50, null=False, default='') 
+    
+    keywords = CharField(120, null=False)
+    status = SmallIntegerField(default=0) # 0 正常 1删除
+    create_time = DateTimeField('%Y-%m-%d %H:%M:%S', null=True)
 
-  keywords = CharField(120,null=False)# 
-  status = SmallIntegerField(default=0)# 0 正常 1删除
-  create_time = DateTimeField('%Y-%m-%d %H:%M:%S',null=True)
-  
 class User_block_list(_Base):
-    """
-    用户屏蔽列表（黑名单设置）
-    user_block_list
-    id user_id blacklist_type blacklist_value channel_name chat_id  create_time update_time
-    """
+    """用户屏蔽列表（黑名单设置）"""
     user_id = IntegerField(index=True)
     
-    blacklist_type = CharField(50, null=False) # 黑名单的类型。比如length_limit、keyword、username
-    blacklist_value = CharField(120, null=False) # 黑名单值
+    blacklist_type = CharField(50, null=False) # length_limit, keyword, username
+    blacklist_value = CharField(120, null=False)
 
-    channel_name = CharField(50,null=True,default='')# 应用范围 频道名称
-    chat_id = CharField(50, null=True, default='')  # 应用范围  群组/频道的非官方id。 e.g. -1001630956637，如果为空或默认值，表示所有群组
+    channel_name = CharField(50, null=True, default='')
+    chat_id = CharField(50, null=True, default='') 
     
     create_time = DateTimeField('%Y-%m-%d %H:%M:%S', null=True)
     update_time = DateTimeField('%Y-%m-%d %H:%M:%S', null=True)
 
     class Meta:
-        indexes = (
-            # (('user_id', 'channel_name','chat_id', 'blocked_username'), True),  # user_id, chat_id和blocked_username整体作为唯一索引
-        )
-    
+        # 联合索引示例，根据需要取消注释
+        # indexes = (
+        #     (('user_id', 'channel_name', 'chat_id'), False), 
+        # )
+        pass
+
 class _Db:
-  def __init__(self):
-    #创建实例类
-    init_class = [
-      User,
-      User_subscribe_list,
-      User_block_list,
-    ]
-    for model_class in init_class:
-      try:
-        model = model_class()
-        model.table_exists() or (model.create_table()) #不存在 则创建表
+    def __init__(self):
+        self.connect = _connect
+        # 显式连接（可选，Peewee 会自动处理，但手动连接方便排查错误）
+        if self.connect.is_closed():
+            self.connect.connect()
+
+        self.models = [
+            User,
+            User_subscribe_list,
+            User_block_list,
+        ]
         
-        # 执行空查询(检测字段缺失的报错 )
-        model.get_or_none(0)
+        self.initialize_tables()
 
-        setattr(self,model_class.__name__.lower(),model)
-      except OperationalError as __e:
-        _e = str(__e)
+    def initialize_tables(self):
+        """初始化表结构并检查字段缺失（自动迁移）"""
+        # 创建不存在的表
+        self.connect.create_tables(self.models, safe=True)
 
-        # 处理字段不存在的报错
-        if 'no such column' in _e:
-          find = re.search(r'no such column: (?:\\w+\\.)([a-z_0-9]+)$', _e)
-          if find:
-            field = find.group(1)
-            if hasattr(model_class,field):
-              self.add_column(model_class.__name__.lower(),getattr(model_class,field))
-            else:
-              raise __e
+        # 检查并添加缺失的字段
+        migrator = SqliteMigrator(self.connect)
+        
+        for model_class in self.models:
+            # 绑定模型属性到 db 实例，保持原有调用习惯 (utils.db.user)
+            setattr(self, model_class.__name__.lower(), model_class)
+            
+            # 4. 更加安全的字段检查逻辑 (替代 regex)
+            # 获取数据库中该表实际存在的列名
+            columns = [c.name for c in self.connect.get_columns(model_class._meta.table_name)]
+            
+            # 遍历模型定义的所有字段
+            for field_name, field_obj in model_class._meta.fields.items():
+                if field_name not in columns:
+                    print(f"检测到缺失字段，正在自动添加: {model_class.__name__}.{field_name}")
+                    try:
+                        migrate(
+                            migrator.add_column(model_class._meta.table_name, field_name, field_obj)
+                        )
+                    except OperationalError as e:
+                        # 忽略 "duplicate column name" 错误，防止并发下的竞争条件
+                        if 'duplicate column name' not in str(e).lower():
+                            raise e
 
-  def add_column(slef,table,field):
-    '''
-    动态添加字段
+    def __del__(self):
+        if not self.connect.is_closed():
+            self.connect.close()
 
-    https://stackoverflow.com/questions/35012012/peewee-adding-columns-on-demand
-
-    Args:
-        slef ([type]): [description]
-        table ([type]): [description]
-        field ([type]): [description]
-    '''
-    from playhouse.migrate import SqliteMigrator,migrate
-    migrator = SqliteMigrator(_connect)
-    migrate(
-        migrator.add_column(table, field.name, field),
-    )
-
-
-  def __del__(self):
-    # logger.debug('db connect close')
-    # _connect.close()
-    pass
-
+# 实例化
 db = _Db()
-db.connect = _connect

@@ -32,7 +32,7 @@ account['bot_name'] = account.get('bot_name') or account['bot_username']
 tmp_path = f'{current_path}/etc/'
 cache = diskcache.Cache(tmp_path)# 设置缓存文件目录  当前tmp文件夹。用于缓存分步执行命令的操作，避免bot无法找到当前输入操作的进度
 client = TelegramClient(f'{tmp_path}/User_tg_login', account['api_id'], account['api_hash'], proxy = proxy)
-client.start(phone=account['phone'])
+#client.start(phone=account['phone'])
 # client.start()
 
 # 设置bot，但不立即启动（在main函数中启动）
@@ -1019,32 +1019,35 @@ async def handle_connection_errors(client_obj, name, retry_delay, max_retry_dela
     return True
 
 async def main():
-    cache.expire()
-    print(banner())
-    
-    # 重连机制和错误处理
-    retry_delay = 30  # 初始延迟时间（秒）
-    max_retry_delay = 300  # 最大延迟时间（秒）
-    
-    # 确保两个客户端都已连接
-    if not client.is_connected():
-        await client.connect()
-    
+    cache.expire() # [cite: 77]
+    print(banner()) # [cite: 77]
+
+    # [关键修复] 将客户端启动逻辑移至 main 内部
+    # 这样确保 client 使用的是当前 asyncio.run() 创建的正确 Event Loop
+    # 解决了 "The asyncio event loop must not change after connection" 报错
+    print("正在启动用户客户端...")
+    await client.start(phone=account['phone']) # [cite: 13]
+    print("用户客户端启动成功！")
+
     # 启动机器人客户端（使用bot token）
     try:
         logger.info("正在启动机器人客户端...")
-        await bot.start(bot_token=account['bot_token'])
+        await bot.start(bot_token=account['bot_token']) # [cite: 77]
         logger.info("机器人客户端启动成功")
     except Exception as e:
         logger.error(f"机器人客户端启动失败: {e}")
         raise
+
+    # 重连机制配置
+    retry_delay = 30 # 初始延迟时间（秒） [cite: 77]
+    max_retry_delay = 300 # 最大延迟时间（秒） [cite: 77]
     
-    # 创建两个任务并行运行
-    client_task = asyncio.create_task(run_client(retry_delay, max_retry_delay))
-    bot_task = asyncio.create_task(run_bot(retry_delay, max_retry_delay))
+    # 创建两个任务并行运行：一个处理用户消息监听，一个处理Bot命令响应
+    client_task = asyncio.create_task(run_client(retry_delay, max_retry_delay)) # [cite: 77]
+    bot_task = asyncio.create_task(run_bot(retry_delay, max_retry_delay)) # [cite: 77]
     
-    # 等待两个任务完成（实际上不会完成，除非发生错误）
-    await asyncio.gather(client_task, bot_task)
+    # 等待两个任务完成
+    await asyncio.gather(client_task, bot_task) # [cite: 78]
 
 async def run_client(retry_delay, max_retry_delay):
     """运行主客户端（用于监听消息）"""
