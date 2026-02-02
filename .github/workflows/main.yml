@@ -38,10 +38,20 @@ jobs:
         pipenv lock
 
     - name: Create version file
+      id: get_version  # 关键：给这个步骤起个名字，后面才能引用
       run: |
         COMMIT_ID=$(git rev-parse --short HEAD)
-        echo "__version__ = '$(TZ='Asia/Shanghai' date +'%Y%m%d').$COMMIT_ID'" > utils/__version__.py
-
+        # 将版本号存入变量
+        VERSION="$(TZ='Asia/Shanghai' date +'%Y%m%d').$COMMIT_ID"
+        
+        # 写入 python 文件 (保持原有逻辑)
+        echo "__version__ = '$VERSION'" > utils/__version__.py
+        
+        # 输出到 GitHub Actions 的输出变量中
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        
+        # 打印一下方便调试
+        echo "生成的版本号为: $VERSION"
 
     - name: Login to DockerHub
       uses: docker/login-action@v3
@@ -55,4 +65,6 @@ jobs:
         context: .
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: povoma4617/keyword_alert_bot:latest
+        tags: |
+          povoma4617/keyword_alert_bot:latest
+          povoma4617/keyword_alert_bot:${{ steps.get_version.outputs.VERSION }}
